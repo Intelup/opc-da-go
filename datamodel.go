@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-//Collector interface
+// Collector interface
 type Collector interface {
 	Get(string) (interface{}, bool)
 	Sync(Connection, time.Duration) io.Closer
 }
 
-//data holds the data structure that is refreshed with OPC data.
+// data holds the data structure that is refreshed with OPC data.
 type data struct {
 	tags map[string]interface{}
 	mu   sync.RWMutex
 }
 
-//Get is the thread-safe getter for the tags.
+// Get is the thread-safe getter for the tags.
 func (d *data) Get(key string) (interface{}, bool) {
 	d.mu.RLock()
 	value, ok := d.tags[key]
@@ -26,9 +26,9 @@ func (d *data) Get(key string) (interface{}, bool) {
 	return value, ok
 }
 
-//update is a helper function to update map
+// update is a helper function to update map
 func (d *data) update(conn Connection) {
-	update := conn.Read()
+	update, _ := conn.Read()
 	d.mu.Lock()
 	for key, item := range update {
 		d.tags[key] = item.Value
@@ -36,7 +36,7 @@ func (d *data) update(conn Connection) {
 	d.mu.Unlock()
 }
 
-//Sync synchronizes the opc server and stores the data into the data model.
+// Sync synchronizes the opc server and stores the data into the data model.
 func (d *data) Sync(conn Connection, refreshRate time.Duration) io.Closer {
 
 	control := newControl()
@@ -60,7 +60,7 @@ func (d *data) Sync(conn Connection, refreshRate time.Duration) io.Closer {
 	return control
 }
 
-//NewDataModel returns an OPC Data struct.
+// NewDataModel returns an OPC Data struct.
 func NewDataModel() Collector {
 	return &data{tags: make(map[string]interface{})}
 }

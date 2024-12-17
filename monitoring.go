@@ -32,7 +32,7 @@ func init() {
 	prometheus.MustRegister(opcReadsDuration)
 }
 
-//StartMonitoring exposes /metrics to Prometheus
+// StartMonitoring exposes /metrics to Prometheus
 func StartMonitoring(port string) {
 	var p string
 	if port == "" {

@@ -1,4 +1,4 @@
-module github.com/konimarti/opc
+module github.com/Intelup/opc-da-go
 
 go 1.19
 

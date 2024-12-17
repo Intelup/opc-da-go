@@ -38,25 +38,27 @@ const (
 	OPCTest int32 = 5
 )
 
-//Connection represents the interface for the connection to the OPC server.
+// Connection represents the interface for the connection to the OPC server.
 type Connection interface {
 	Add(...string) error
 	Remove(string)
-	Read() map[string]Item
+	Read() (map[string]Item, error)
 	ReadItem(string) Item
 	Tags() []string
 	Write(string, interface{}) error
 	Close()
 }
 
-//Item stores the result of an OPC item from the OPC server.
+// Item stores the result of an OPC item from the OPC server.
 type Item struct {
+	Tag       string
 	Value     interface{}
 	Quality   int16
 	Timestamp time.Time
+	Err       interface{}
 }
 
-//Good checks the quality of the Item
+// Good checks the quality of the Item
 func (i *Item) Good() bool {
 	if i.Quality == OPCQualityGood || i.Quality == OPCQualityGoodButForced {
 		return true

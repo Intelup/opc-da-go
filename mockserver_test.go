@@ -12,7 +12,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-//Embedded type for mock servers
+// Embedded type for mock servers
 type emptyServer struct{}
 
 func (es *emptyServer) Add(...string) error             { return nil }
@@ -21,45 +21,45 @@ func (es *emptyServer) Write(string, interface{}) error { return nil }
 func (es *emptyServer) Close()                          {}
 func (es *emptyServer) Tags() []string                  { return []string{} }
 
-//OpcMockServerStatic implements an OPC Server that returns the index value plus 1 for each tag.
+// OpcMockServerStatic implements an OPC Server that returns the index value plus 1 for each tag.
 type OpcMockServerStatic struct {
 	*emptyServer
 	TagList []string
 }
 
 func (oms *OpcMockServerStatic) ReadItem(tag string) Item {
-	items := oms.Read()
+	items, _ := oms.Read()
 	return items[tag]
 }
 
-func (oms *OpcMockServerStatic) Read() map[string]Item {
+func (oms *OpcMockServerStatic) Read() (map[string]Item, error) {
 	answer := make(map[string]Item)
 	for i, tag := range oms.TagList {
-		answer[tag] = Item{float64(i) + 1.0, OPCQualityGood, time.Now()}
+		answer[tag] = Item{tag, float64(i) + 1.0, OPCQualityGood, time.Now(), nil}
 	}
-	return answer
+	return answer, nil
 }
 
-//OpcMockServerRandom implements an OPC Server that returns a random value for each tag.
+// OpcMockServerRandom implements an OPC Server that returns a random value for each tag.
 type OpcMockServerRandom struct {
 	*emptyServer
 	TagList []string
 }
 
 func (oms *OpcMockServerRandom) ReadItem(tag string) Item {
-	items := oms.Read()
+	items, _ := oms.Read()
 	return items[tag]
 }
 
-func (oms *OpcMockServerRandom) Read() map[string]Item {
+func (oms *OpcMockServerRandom) Read() (map[string]Item, error) {
 	answer := make(map[string]Item)
 	for _, tag := range oms.TagList {
-		answer[tag] = Item{rand.Float64(), OPCQualityGood, time.Now()}
+		answer[tag] = Item{tag, rand.Float64(), OPCQualityGood, time.Now(), nil}
 	}
-	return answer
+	return answer, nil
 }
 
-//OpcMockServerWakeUp implements an OPC Server that returns 1.0 for a certain duration then a random value for each tag.
+// OpcMockServerWakeUp implements an OPC Server that returns 1.0 for a certain duration then a random value for each tag.
 type OpcMockServerWakeUp struct {
 	*emptyServer
 	TagList []string
@@ -90,16 +90,16 @@ func (oms *OpcMockServerWakeUp) Read() map[string]Item {
 
 	for _, tag := range oms.TagList {
 		if oms.AtSleep {
-			answer[tag] = Item{1.0, OPCQualityGood, time.Now()}
+			answer[tag] = Item{tag, 1.0, OPCQualityGood, time.Now(), nil}
 		} else {
-			answer[tag] = Item{rand.Float64(), OPCQualityGood, time.Now()}
+			answer[tag] = Item{tag, rand.Float64(), OPCQualityGood, time.Now(), nil}
 		}
 	}
 
 	return answer
 }
 
-//FallAsleep Server, sets to 2.0 after time period (opposite of WakeUp server)
+// FallAsleep Server, sets to 2.0 after time period (opposite of WakeUp server)
 type OpcMockServerFallAsleep struct {
 	*emptyServer
 	TagList []string
@@ -130,9 +130,9 @@ func (oms *OpcMockServerFallAsleep) Read() map[string]Item {
 
 	for _, tag := range oms.TagList {
 		if oms.AtSleep {
-			answer[tag] = Item{2.0, OPCQualityGood, time.Now()}
+			answer[tag] = Item{tag, 2.0, OPCQualityGood, time.Now(), nil}
 		} else {
-			answer[tag] = Item{rand.Float64(), OPCQualityGood, time.Now()}
+			answer[tag] = Item{tag, rand.Float64(), OPCQualityGood, time.Now(), nil}
 		}
 	}
 
