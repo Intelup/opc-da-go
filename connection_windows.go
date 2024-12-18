@@ -6,7 +6,6 @@ package opc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -310,7 +309,7 @@ func findOPCWrappers() ([]string, error) {
 		// Verifica se o nome da chave contém a palavra "OPC"
 		if strings.Contains(subKey, "OPC") {
 			availableWrappers = append(availableWrappers, subKey)
-			log.Printf("Wrapper OPC encontrado: %s", subKey)
+			logger.Println("Wrapper OPC encontrado: %s", subKey)
 		}
 	}
 
