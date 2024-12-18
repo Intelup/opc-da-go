@@ -40,6 +40,10 @@ func (oms *OpcMockServerStatic) Read() (map[string]Item, error) {
 	return answer, nil
 }
 
+func (oms *OpcMockServerStatic) IsConnected() bool {
+	return true
+}
+
 // OpcMockServerRandom implements an OPC Server that returns a random value for each tag.
 type OpcMockServerRandom struct {
 	*emptyServer
@@ -57,6 +61,9 @@ func (oms *OpcMockServerRandom) Read() (map[string]Item, error) {
 		answer[tag] = Item{tag, rand.Float64(), OPCQualityGood, time.Now(), nil}
 	}
 	return answer, nil
+}
+func (oms *OpcMockServerRandom) IsConnected() bool {
+	return true
 }
 
 // OpcMockServerWakeUp implements an OPC Server that returns 1.0 for a certain duration then a random value for each tag.

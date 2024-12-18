@@ -6,11 +6,14 @@ package opc
 import (
 	"errors"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
 	ole "github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
+	"golang.org/x/sys/windows/registry"
 )
 
 func init() {
@@ -285,14 +288,43 @@ func (ao *AutomationObject) Close() {
 	}
 }
 
+func findOPCWrappers() ([]string, error) {
+	var availableWrappers []string
+
+	// Verifica no registro HKEY_CLASSES_ROOT
+	regKey := `Software\Classes`
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regKey, registry.READ)
+	if err != nil {
+		return nil, err
+	}
+	defer k.Close()
+
+	// Itera pelas chaves do registro
+	subKeys, err := k.ReadSubKeyNames(0)
+	if err != nil {
+		return nil, err
+	}
+
+	// Busca por objetos COM que possivelmente são wrappers OPC
+	for _, subKey := range subKeys {
+		// Verifica se o nome da chave contém a palavra "OPC"
+		if strings.Contains(subKey, "OPC") {
+			availableWrappers = append(availableWrappers, subKey)
+			log.Printf("Wrapper OPC encontrado: %s", subKey)
+		}
+	}
+
+	return availableWrappers, nil
+}
+
 // NewAutomationObject connects to the COM object based on available wrappers.
 func NewAutomationObject() *AutomationObject {
-	wrappers := []string{
-		"OPC.Automation.1",
-		"Graybox.OPC.DAWrapper.1",
-		"Matrikon.OPC.Automation.1",
+	wrappers, err := findOPCWrappers()
+
+	if err != nil {
+		logger.Fatalf("Erro ao buscar wrappers OPC: %v", err)
 	}
-	var err error
+
 	var unknown *ole.IUnknown
 	for _, wrapper := range wrappers {
 		unknown, err = oleutil.CreateObject(wrapper)
