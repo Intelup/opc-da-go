@@ -35,8 +35,8 @@ type AutomationObject struct {
 	object  *ole.IDispatch
 }
 
-// CreateBrowser returns the OPCBrowser object from the OPCServer.
-func (ao *AutomationObject) CreateBrowser() (*Tree, error) {
+// CreateBrowser initializes the OPCBrowser and returns the root or specific branch based on the nextName parameter.
+func (ao *AutomationObject) CreateBrowser(path string) (*Tree, error) {
 	if !ao.IsConnected() {
 		return nil, errors.New("cannot create browser because we are not connected")
 	}
@@ -55,40 +55,55 @@ func (ao *AutomationObject) CreateBrowser() (*Tree, error) {
 		return nil, errors.New("CreateBrowser returned nil browser")
 	}
 
+	// Move to the root of the tree
 	_, err = oleutil.CallMethod(bd, "MoveToRoot")
 	if err != nil {
 		return nil, errors.New("failed to MoveToRoot in browser")
 	}
 
-	root := Tree{"root", nil, []*Tree{}, []Leaf{}}
-	buildTree(bd, &root)
-	return &root, nil
-}
+	// Navigate through the path
+	segments := strings.Split(path, "/")
+	for _, segment := range segments {
+		if segment == "" {
+			continue
+		}
 
-// buildTree runs through the OPCBrowser and creates a tree with the OPC tags
-func buildTree(browser *ole.IDispatch, branch *Tree) {
-	if browser == nil {
-		logger.Println("browser is nil in buildTree")
-		return
+		logger.Printf("Navigating to branch: %s", segment)
+
+		_, err := oleutil.CallMethod(bd, "MoveDown", segment)
+		if err != nil {
+			return nil, fmt.Errorf("failed to navigate to branch '%s': %v", segment, err)
+		}
 	}
 
-	var count int32
+	// Create and populate the tree at the final branch
+	branch := Tree{Name: segments[len(segments)-1], Parent: nil, Branches: []*Tree{}, Leaves: []Leaf{}}
+	err = buildBranch(bd, &branch)
+	if err != nil {
+		return nil, err
+	}
 
-	logger.Println("Entering branch:", branch.Name)
+	return &branch, nil
+}
 
+// buildBranch populates the Tree structure for a single branch.
+func buildBranch(browser *ole.IDispatch, branch *Tree) error {
+	if browser == nil {
+		return errors.New("browser is nil in buildBranch")
+	}
+
+	// Get and add leaves
 	res := oleutil.MustCallMethod(browser, "ShowLeafs")
 	if res.VT == ole.VT_DISPATCH && res.Value() == nil {
 		logger.Println("ShowLeafs returned nil")
 	}
 	countVar := oleutil.MustGetProperty(browser, "Count")
 	if countVar.VT != ole.VT_I4 {
-		logger.Println("Count property is not int32")
-		return
+		return errors.New("Count property is not int32")
 	}
-	count = countVar.Value().(int32)
+	count := countVar.Value().(int32)
 
 	logger.Println("\tLeafs count:", count)
-
 	for i := 1; i <= int(count); i++ {
 		itemRes := oleutil.MustCallMethod(browser, "Item", i)
 		if itemRes == nil || itemRes.VT == ole.VT_EMPTY {
@@ -105,20 +120,18 @@ func buildTree(browser *ole.IDispatch, branch *Tree) {
 		tag := tagRes.Value()
 
 		l := Leaf{Name: fmt.Sprintf("%v", item), Tag: fmt.Sprintf("%v", tag)}
-		logger.Println("\t", i, l)
 		branch.Leaves = append(branch.Leaves, l)
 	}
 
+	// Get branches
 	oleutil.MustCallMethod(browser, "ShowBranches")
 	countVar = oleutil.MustGetProperty(browser, "Count")
 	if countVar.VT != ole.VT_I4 {
-		logger.Println("Count property is not int32 in branches")
-		return
+		return errors.New("Count property is not int32 in branches")
 	}
 	count = countVar.Value().(int32)
 
 	logger.Println("\tBranches count:", count)
-
 	for i := 1; i <= int(count); i++ {
 		nextNameRes := oleutil.MustCallMethod(browser, "Item", i)
 		if nextNameRes == nil || nextNameRes.VT == ole.VT_EMPTY {
@@ -128,25 +141,15 @@ func buildTree(browser *ole.IDispatch, branch *Tree) {
 		nextName := nextNameRes.Value()
 
 		logger.Println("\t", i, "next branch:", nextName)
-
-		_, err := oleutil.CallMethod(browser, "MoveDown", nextName)
-		if err != nil {
-			logger.Println("MoveDown failed:", err)
-			continue
-		}
-
-		nextBranch := Tree{fmt.Sprintf("%v", nextName), branch, []*Tree{}, []Leaf{}}
-		branch.Branches = append(branch.Branches, &nextBranch)
-		buildTree(browser, &nextBranch)
-
-		_, err = oleutil.CallMethod(browser, "MoveUp")
-		if err != nil {
-			logger.Println("MoveUp failed:", err)
-		}
-		oleutil.MustCallMethod(browser, "ShowBranches")
+		branch.Branches = append(branch.Branches, &Tree{
+			Name:     fmt.Sprintf("%v", nextName),
+			Parent:   branch,
+			Branches: []*Tree{},
+			Leaves:   []Leaf{},
+		})
 	}
 
-	logger.Println("Exiting branch:", branch.Name)
+	return nil
 }
 
 // Connect establishes a connection to the OPC Server on node.
@@ -651,7 +654,7 @@ func NewConnection(server string, nodes []string, tags []string) (Connection, er
 }
 
 // CreateBrowser creates an opc browser representation
-func CreateBrowser(server string, nodes []string) (*Tree, error) {
+func CreateBrowser(server string, nodes []string, browser string) (*Tree, error) {
 	object := NewAutomationObject()
 	if object == nil || object.object == nil {
 		return nil, errors.New("could not create automation object for browser")
@@ -661,5 +664,5 @@ func CreateBrowser(server string, nodes []string) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return object.CreateBrowser()
+	return object.CreateBrowser(browser)
 }
