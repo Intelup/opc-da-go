@@ -290,7 +290,7 @@ func (ao *AutomationObject) Close() {
 	}
 }
 
-func findOPCWrappers() ([]string, error) {
+func FindOPCWrappers() ([]string, error) {
 	var availableWrappers []string
 
 	// Verifica no registro HKEY_CLASSES_ROOT
@@ -321,7 +321,7 @@ func findOPCWrappers() ([]string, error) {
 
 // NewAutomationObject connects to the COM object based on available wrappers.
 func NewAutomationObject() *AutomationObject {
-	wrappers, err := findOPCWrappers()
+	wrappers, err := FindOPCWrappers()
 
 	if err != nil {
 		logger.Fatalf("Erro ao buscar wrappers OPC: %v", err)

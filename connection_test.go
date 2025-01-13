@@ -10,6 +10,7 @@ func TestOPCBrowser(t *testing.T) {
 	browser, err := CreateBrowser(
 		"Graybox.Simulator",
 		[]string{"localhost"},
+		"",
 	)
 	if err != nil {
 		t.Fatal(err)
