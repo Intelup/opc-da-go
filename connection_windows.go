@@ -80,9 +80,10 @@ func (ao *AutomationObject) CreateBrowser(path string) (*Tree, error) {
 	branch := Tree{Name: segments[len(segments)-1], Parent: nil, Branches: []*Tree{}, Leaves: []Leaf{}}
 	err = buildBranch(bd, &branch)
 	if err != nil {
+		bd.Release()
 		return nil, err
 	}
-
+	bd.Release()
 	return &branch, nil
 }
 
