@@ -48,6 +48,7 @@ type Connection interface {
 	Write(string, interface{}) error
 	Close()
 	IsConnected() bool
+	CreateBrowser(path string) (*Tree, error)
 }
 
 // Item stores the result of an OPC item from the OPC server.
