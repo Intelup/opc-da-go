@@ -377,22 +377,28 @@ func (ai *AutomationItems) addSingle(tag string) error {
 	return nil
 }
 
+type ErrResult struct {
+	Message string `json:"message"`
+	Tag     string `json:"tag"`
+}
+
 // Add accepts a variadic parameters of tags.
-func (ai *AutomationItems) Add(tags ...string) error {
+func (ai *AutomationItems) Add(tags ...string) ([]string, []ErrResult, error) {
 	if ai == nil {
-		return errors.New("AutomationItems is nil")
+		return nil, nil, errors.New("AutomationItems is nil")
 	}
-	var errResult string
+	var nodes []string
+	var errResult []ErrResult
 	for _, tag := range tags {
 		err := ai.addSingle(tag)
 		if err != nil {
-			errResult = err.Error() + errResult
+			errResult = append(errResult, ErrResult{Message: err.Error(), Tag: tag})
+		} else {
+			nodes = append(nodes, tag)
 		}
 	}
-	if errResult == "" {
-		return nil
-	}
-	return errors.New(errResult)
+
+	return nodes, errResult, nil
 }
 
 // Remove removes the tag.
@@ -602,8 +608,17 @@ func (conn *opcConnectionImpl) fix() error {
 				continue
 			}
 			if conn.AutomationItems != nil {
-				if conn.Add(tags...) == nil {
+				nodesAdded, errors, err := conn.Add(tags...)
+
+				if len(nodesAdded) > 0 {
 					logger.Printf("Added %d tags", len(tags))
+				}
+				if len(errors) > 0 {
+					logger.Printf("Failed to this tags: %v", errors)
+				}
+				if err != nil {
+					logger.Printf("Failed to add tags: %s", err)
+					return err
 				}
 			}
 			break
@@ -627,22 +642,22 @@ func (conn *opcConnectionImpl) Close() {
 }
 
 // NewConnection establishes a connection to the OpcServer object.
-func NewConnection(server string, nodes []string, tags []string) (Connection, error) {
+func NewConnection(server string, nodes []string, tags []string) (Connection, []ErrResult, error) {
 	object := NewAutomationObject()
 	if object == nil || object.object == nil {
-		return &opcConnectionImpl{}, errors.New("could not create automation object")
+		return &opcConnectionImpl{}, nil, errors.New("could not create automation object")
 	}
 
 	items, err := object.TryConnect(server, nodes)
 	if err != nil {
 		object.Close()
-		return &opcConnectionImpl{}, err
+		return &opcConnectionImpl{}, nil, err
 	}
-	err = items.Add(tags...)
+	nodes, nodesErrors, err := items.Add(tags...)
 	if err != nil {
 		items.Close()
 		object.Close()
-		return &opcConnectionImpl{}, err
+		return &opcConnectionImpl{}, nodesErrors, err
 	}
 	conn := opcConnectionImpl{
 		AutomationObject: object,
@@ -651,7 +666,7 @@ func NewConnection(server string, nodes []string, tags []string) (Connection, er
 		Nodes:            nodes,
 	}
 
-	return &conn, nil
+	return &conn, nodesErrors, nil
 }
 
 // CreateBrowser creates an opc browser representation

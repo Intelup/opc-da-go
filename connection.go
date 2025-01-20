@@ -40,7 +40,7 @@ const (
 
 // Connection represents the interface for the connection to the OPC server.
 type Connection interface {
-	Add(...string) error
+	Add(...string) ([]string, []ErrResult, error)
 	Remove(string)
 	Read() (map[string]Item, error)
 	ReadItem(string) Item
